@@ -22,87 +22,46 @@ const scoreMapping =  {
 
 module.exports = function(hubot) {
   hubot.hear(/如何正确地吃饭/, res => {
-    res.send(`吃饭教程：<https://github.com/jysperm/obama>`);
+    res.send(`吃饭教程：<https://github.com/leancloud/obama>`);
   });
 
   hubot.hear(/(午|晚)?.*吃什么/, res => {
     const tag = res.match[1] ? res.match[1] : '晚';
     const date = moment().format('YYYY-MM-DD');
 
-    return Promise.all([
-      new AV.Query(History).find(),
-      new AV.Query(Choice).find(),
-      new AV.Query(Preference).find()
-    ]).then( ([history, choices, preferences]) => {
-      const currentHisotry = _.find(history, h => {
-        return h.get('date') === date && h.get('tag') === tag;
-      });
-
-      if (!currentHisotry) {
-        throw new Error('一个吃饭的人都没有么？');
-      }
-
-      const usernames = currentHisotry.get('members');
-
-      if (!usernames.length) {
-        throw new Error('一个吃饭的人都没有么？');
-      }
-
-      const choicesScores = choices.map( choice => {
-        return {
-          id: choice.id,
-          name: choice.get('name'),
-          scoreByUsers: {}
-        };
-      });
-
-      const preferencesByUser = _.groupBy(preferences.filter( preference => {
-        return _.includes(usernames, preference.get('username'));
-      }).map( preference => {
-        return {
-          username: preference.get('username'),
-          choiceId: preference.get('choice').id,
-          score: preference.get('score')
-        };
-      }), 'username');
-
-      _.map(preferencesByUser, (preferences, username) => {
-        const factor = 1 / preferences.length;
-
-        preferences.forEach( ({choiceId, score}) => {
-          const choice = _.find(choicesScores, {id: choiceId});
-
-          if (choice) {
-            choice.scoreByUsers[username] = factor * score;
-          }
-        });
-      });
-
-      history.forEach( h => {
-        const daysAgo = moment().diff(h.get('date'), 'days');
-        const factor = 1 - 1 / Math.pow(2, daysAgo);
-
-        if (h.get('choice') && daysAgo < 5) {
-          const choice = _.find(choicesScores, {id: h.get('choice').id});
-
-          if (choice) {
-            h.get('members').forEach( username => {
-              if (choice.scoreByUsers[username]) {
-                choice.scoreByUsers[username] *= factor;
-              }
-            });
-          }
-        }
-      });
-
-      choicesScores.forEach( choicesScore => {
-        choicesScore.score = _.sum(_.values(choicesScore.scoreByUsers));
-      });
-
+    return sortChoicesByPreferences(date, tag).then( choicesScores => {
       return addSomeRandom(date, choicesScores).reverse();
     }).then( sortedChoices => {
       res.send('今天推荐的三个去处按顺序是：\n' + sortedChoices.slice(0, 3).map( ({name, score}) => {
         return `${name}：${score.toFixed(2)}`;
+      }).join('\n'));
+    }).catch( err => {
+      res.send(err.message);
+    });
+  });
+
+  hubot.hear(/(午|晚)?.*偏好分数/, res => {
+    const tag = res.match[1] ? res.match[1] : '晚';
+    const date = moment().format('YYYY-MM-DD');
+
+    return sortChoicesByPreferences(date, tag).then( sortedChoices => {
+      res.send(sortedChoices.map( ({name, score}) => {
+        return `${name} 偏好分数：${score.toFixed(2)}`;
+      }).join('\n'));
+    }).catch( err => {
+      res.send(err.message);
+    });
+  });
+
+  hubot.hear(/(午|晚)?.*(凭|为)什么/, res => {
+    const tag = res.match[1] ? res.match[1] : '晚';
+    const date = moment().format('YYYY-MM-DD');
+
+    return sortChoicesByPreferences(date, tag).then( choicesScores => {
+      return addSomeRandom(date, choicesScores).reverse();
+    }).then( sortedChoices => {
+      res.send(sortedChoices.map( ({name, score, factor, random, randomScore}) => {
+        return `${name} 偏好分数：${score.toFixed(2)}，最终分数：${factor} * ${random.toFixed(2)} = ${randomScore.toFixed(2)}`;
       }).join('\n'));
     }).catch( err => {
       res.send(err.message);
@@ -384,14 +343,94 @@ function scoreToPriority(score) {
   });
 }
 
+function sortChoicesByPreferences(date, tag) {
+  return Promise.all([
+    new AV.Query(History).find(),
+    new AV.Query(Choice).find(),
+    new AV.Query(Preference).find()
+  ]).then( ([history, choices, preferences]) => {
+    const currentHisotry = _.find(history, h => {
+      return h.get('date') === date && h.get('tag') === tag;
+    });
+
+    if (!currentHisotry) {
+      throw new Error('一个吃饭的人都没有么？');
+    }
+
+    const usernames = currentHisotry.get('members');
+
+    if (!usernames.length) {
+      throw new Error('一个吃饭的人都没有么？');
+    }
+
+    const choicesScores = choices.map( choice => {
+      return {
+        id: choice.id,
+        name: choice.get('name'),
+        scoreByUsers: {}
+      };
+    });
+
+    const preferencesByUser = _.groupBy(preferences.filter( preference => {
+      return _.includes(usernames, preference.get('username'));
+    }).map( preference => {
+      return {
+        username: preference.get('username'),
+        choiceId: preference.get('choice').id,
+        score: preference.get('score')
+      };
+    }), 'username');
+
+    _.map(preferencesByUser, (preferences, username) => {
+      const factor = 1 / preferences.length;
+
+      preferences.forEach( ({choiceId, score}) => {
+        const choice = _.find(choicesScores, {id: choiceId});
+
+        if (choice) {
+          choice.scoreByUsers[username] = factor * score;
+        }
+      });
+    });
+
+    history.forEach( h => {
+      const daysAgo = moment().diff(h.get('date'), 'days');
+      const factor = 1 - 1 / Math.pow(2, daysAgo);
+
+      if (h.get('choice') && daysAgo < 5) {
+        const choice = _.find(choicesScores, {id: h.get('choice').id});
+
+        if (choice) {
+          h.get('members').forEach( username => {
+            if (choice.scoreByUsers[username]) {
+              choice.scoreByUsers[username] *= factor;
+            }
+          });
+        }
+      }
+    });
+
+    choicesScores.forEach( choicesScore => {
+      choicesScore.score = _.sum(_.values(choicesScore.scoreByUsers));
+    });
+
+    return _.sortBy(choicesScores, 'score').reverse();
+  });
+}
+
 function addSomeRandom(seed, items) {
   const random = seedRandom(seed);
 
-  return _.sortBy(items, ({name, score}) => {
-    return items.filter(item => {
-      return item.score < score;
-    }).length * random();
+  items.forEach( item => {
+    item.factor = items.filter(i => {
+      return i.score < item.score;
+    }).length;
+
+    item.random = random();
+    item.randomScore = item.factor * item.random;
   });
+
+  return _.sortBy(items, 'randomScore');
 }
 
 function getUsername(res) {
