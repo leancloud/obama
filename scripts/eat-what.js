@@ -21,19 +21,19 @@ const scoreMapping =  {
 };
 
 module.exports = function(hubot) {
-  hubot.hear(/如何正确地吃饭/, res => {
+  hubot.hear(/如何.*吃饭/, res => {
     res.send(`吃饭教程：<https://github.com/leancloud/obama>`);
   });
 
-  hubot.hear(/(午|晚)?.*吃什么/, res => {
+  hubot.hear(/(午|晚)?.*吃(什么|啥)/, res => {
     const tag = res.match[1] ? res.match[1] : '晚';
     const date = moment().format('YYYY-MM-DD');
 
     return sortChoicesByPreferences(date, tag).then( choicesScores => {
       return addSomeRandom(date, choicesScores).reverse();
     }).then( sortedChoices => {
-      res.send('今天推荐的三个去处按顺序是：\n' + sortedChoices.slice(0, 3).map( ({name, score}) => {
-        return `${name}：${score.toFixed(2)}`;
+      res.send('今天推荐的三个去处按顺序是：\n' + sortedChoices.slice(0, 3).map( ({name, randomScore}) => {
+        return `${name}：${randomScore.toFixed(2)}`;
       }).join('\n'));
     }).catch( err => {
       res.send(err.message);
@@ -91,6 +91,19 @@ module.exports = function(hubot) {
     const date = moment().format('YYYY-MM-DD');
 
     return changeHistoryMembers(date, tag, 'addUnique', getUsername(res)).then( () => {
+      return printTodayHistory().then( todayHistory => {
+        res.send(todayHistory);
+      });
+    }).catch( err => {
+      res.send(err.message);
+    });
+  });
+
+  hubot.hear(/我不.*吃(午|晚)?饭了/, res => {
+    const tag = res.match[1] ? res.match[1] : '晚';
+    const date = moment().format('YYYY-MM-DD');
+
+    return quitHistory(date, tag, getUsername(res)).then( () => {
       return printTodayHistory().then( todayHistory => {
         res.send(todayHistory);
       });
@@ -296,6 +309,16 @@ function changeHistoryMembers(date, tag, op, username) {
   });
 }
 
+function quitHistory(date, tag, username) {
+  console.log(date, tag, username);
+  return new AV.Query(History).equalTo('date', date).equalTo('tag', tag).equalTo('members', username).find().then( history => {
+    console.log(history);
+    return Promise.all(history.map( h => {
+      return h.remove('members', username).save();
+    }));
+  });
+}
+
 function setHistoryChoice(date, tag, choice) {
   return new AV.Query(History).equalTo('date', date).equalTo('tag', tag).first().then( history => {
     if (history) {
@@ -412,6 +435,9 @@ function sortChoicesByPreferences(date, tag) {
 
     choicesScores.forEach( choicesScore => {
       choicesScore.score = _.sum(_.values(choicesScore.scoreByUsers));
+      choicesScore.users = _.map(choicesScore.scoreByUsers, (score, username) => {
+        return `${username}${score > 0 ? '+' : '-'}`;
+      });
     });
 
     return _.sortBy(choicesScores, 'score').reverse();
