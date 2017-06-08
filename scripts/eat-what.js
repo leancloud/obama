@@ -16,13 +16,19 @@ const scoreMapping =  {
   '非常喜欢': 2,
   '喜欢': 1,
   '不喜欢': -1,
+  '讨厌': -1,
   '非常不喜欢': -2,
-  '绝对不去': -5
+  '非常讨厌': -2,
+  '绝对不去': -2
 };
 
 module.exports = function(hubot) {
-  hubot.hear(/如何.*吃饭/, res => {
-    res.send(`吃饭教程：<https://github.com/leancloud/obama>`);
+  hubot.hear(/(如何|怎么).*吃饭/, res => {
+    res.send(`<https://github.com/leancloud/obama>`);
+  });
+
+  hubot.hear(/(代码|code)/, res => {
+    res.send(`<https://github.com/leancloud/obama/blob/master/scripts/eat-what.js>`);
   });
 
   hubot.hear(/(午|晚)?.*吃(什么|啥)/, res => {
@@ -45,8 +51,8 @@ module.exports = function(hubot) {
     const date = moment().format('YYYY-MM-DD');
 
     return sortChoicesByPreferences(date, tag).then( sortedChoices => {
-      res.send(sortedChoices.map( ({name, score}) => {
-        return `${name} 偏好分数：${score.toFixed(2)}`;
+      res.send(sortedChoices.map( ({name, score, users}) => {
+        return `${name}${users.length ? `（${users.join('、')}）` : ''}：${score.toFixed(2)}`;
       }).join('\n'));
     }).catch( err => {
       res.send(err.message);
@@ -61,7 +67,7 @@ module.exports = function(hubot) {
       return addSomeRandom(date, choicesScores).reverse();
     }).then( sortedChoices => {
       res.send(sortedChoices.map( ({name, score, factor, random, randomScore}) => {
-        return `${name} 偏好分数：${score.toFixed(2)}，最终分数：${factor} * ${random.toFixed(2)} = ${randomScore.toFixed(2)}`;
+        return `${name} 偏好：${score.toFixed(2)}，最终：${factor} * ${random.toFixed(2)} = ${randomScore.toFixed(2)}`;
       }).join('\n'));
     }).catch( err => {
       res.send(err.message);
@@ -78,8 +84,8 @@ module.exports = function(hubot) {
 
   hubot.hear(/统计.*偏好/, res  => {
     return getGlobalStat().then( sortedChoices => {
-      res.send(sortedChoices.map( ({name, score}) => {
-        return `${name}：${score}`;
+      res.send(sortedChoices.map( ({name, score, users}) => {
+        return `${name}${users.length ? `（${users.join('、')}）` : ''}：${score}`;
       }).join('\n'));
     }).catch( err => {
       res.send(err.message);
@@ -99,7 +105,28 @@ module.exports = function(hubot) {
     });
   });
 
+  hubot.hear(/我要和(.*)一起吃(午|晚)?饭/, res => {
+
+  });
+
+  hubot.hear(/我不.*大.*一起吃(午|晚)?饭/, res => {
+    const tag = res.match[1] ? res.match[1] : '晚';
+    const date = moment().format('YYYY-MM-DD');
+
+    return createNewHistory(date, tag, getUsername(res)).then( () => {
+      return printTodayHistory().then( todayHistory => {
+        res.send(todayHistory);
+      });
+    }).catch( err => {
+      res.send(err.message);
+    });
+  });
+
   hubot.hear(/我不.*吃(午|晚)?饭了/, res => {
+    if (res.match[0].match(/一起/)) {
+      return;
+    }
+
     const tag = res.match[1] ? res.match[1] : '晚';
     const date = moment().format('YYYY-MM-DD');
 
@@ -112,13 +139,26 @@ module.exports = function(hubot) {
     });
   });
 
+  hubot.hear(/(.*)(并没有|不去).*(午|晚)?饭/, res => {
+    const usernames = extractUsernames(res.match[1]);
+    const tag = res.match[3] ? res.match[3] : '晚';
+    const date = moment().format('YYYY-MM-DD');
+
+    return Promise.all(usernames.map( username => {
+      return quitHistory(date, tag, username);
+    })).then( () => {
+      return printTodayHistory().then( todayHistory => {
+        res.send(todayHistory);
+      });
+    }).catch( err => {
+      res.send(err.message);
+    });
+  });
+
   hubot.hear(/(.*)也要吃(午|晚)?饭/, res => {
     const tag = res.match[2] ? res.match[2] : '晚';
     const date = moment().format('YYYY-MM-DD');
-
-    const usernames = res.match[1].match(/@(\S+\b)/g).map( username => {
-      return username.replace('@', '');
-    });
+    const usernames = extractUsernames(res.match[1]);
 
     return Promise.all(usernames.map( username => {
       return changeHistoryMembers(date, tag, 'addUnique', username);
@@ -168,7 +208,7 @@ module.exports = function(hubot) {
     });
   });
 
-  hubot.hear(/我(非常喜欢|喜欢|不喜欢|非常不喜欢|绝对不去)(.*)/, res => {
+  hubot.hear(/我(非常喜欢|喜欢|不喜欢|非常不喜欢|讨厌|非常讨厌|绝对不去)(.*)/, res => {
     const [__, priority, choiceName] = res.match;
     const username = getUsername(res);
 
@@ -232,6 +272,7 @@ function getGlobalStat() {
     const choicesScores = choices.map( choice => {
       return {
         name: choice.get('name'),
+        users: [],
         score: 0
       };
     });
@@ -252,6 +293,7 @@ function getGlobalStat() {
       }
 
       choicesScore.score += preference.get('score');
+      choicesScore.users = _.union(choicesScore.users, [`${preference.get('username')}${preference.get('score') > 0 ? '+' : '-'}`]);
     });
 
     return _.sortBy(choicesScores, 'score').reverse();
@@ -309,12 +351,24 @@ function changeHistoryMembers(date, tag, op, username) {
   });
 }
 
+function createNewHistory(date, tag, username) {
+  return quitHistory(date, tag, username).then( () => {
+    return new History({
+      date: date,
+      tag: tag,
+      members: [username]
+    }).save();
+  });
+}
+
 function quitHistory(date, tag, username) {
-  console.log(date, tag, username);
   return new AV.Query(History).equalTo('date', date).equalTo('tag', tag).equalTo('members', username).find().then( history => {
-    console.log(history);
     return Promise.all(history.map( h => {
-      return h.remove('members', username).save();
+      if (h.get('members').length > 1) {
+        return h.remove('members', username).save();
+      } else {
+        return h.destroy();
+      }
     }));
   });
 }
@@ -461,4 +515,10 @@ function addSomeRandom(seed, items) {
 
 function getUsername(res) {
   return res.message.user.name || res.message.user;
+}
+
+function extractUsernames(string) {
+  return string.match(/@(\S+\b)/g).map( username => {
+    return username.replace('@', '');
+  });
 }
