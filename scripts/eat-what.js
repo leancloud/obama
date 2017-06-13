@@ -1,3 +1,26 @@
+// Description:
+//   Decide what to eat
+//
+// Commands:
+//   (如何|怎么).*吃饭
+//   (代码|code|man)
+//   (午|晚)?.*吃(什么|啥)
+//   (午|晚)?.*偏好分数
+//   (午|晚)?.*(凭|为)什么
+//   吃的啥
+//   统计.*偏好
+//   我.*要.*吃(午|晚)?饭
+//   我不.*大.*一起吃(午|晚)?饭
+//   我不.*吃(午|晚)?饭了
+//   (.*)(并没有|不去).*(午|晚)?饭
+//   (.*)也要吃(午|晚)?饭
+//   (今|昨)(天|晚)(午|晚)?.*(吃|去)了(.*)
+//   哪里可以去
+//   我.*听说.*叫(.*)
+//   我(非常喜欢|喜欢|不喜欢|非常不喜欢|讨厌|非常讨厌|绝对不去)(.*)
+//   我对(.*)不予评价
+//   @(.*)喜欢去
+
 const _ = require('lodash');
 const moment = require('moment');
 const seedRandom = require('seed-random');
@@ -27,7 +50,7 @@ module.exports = function(hubot) {
     res.send(`<https://github.com/leancloud/obama>`);
   });
 
-  hubot.hear(/(代码|code)/, res => {
+  hubot.hear(/(代码|code|man)/, res => {
     res.send(`<https://github.com/leancloud/obama/blob/master/scripts/eat-what.js>`);
   });
 
