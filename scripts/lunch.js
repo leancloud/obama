@@ -15,7 +15,7 @@ class LunchCount extends AV.Object {}
 
 AV.Object.register(LunchCount);
 
-const 班子成员 = 5;
+const 班子成员 = 4;
 
 module.exports = function(hubot) {
   hubot.hear(/(午.*几个)|(几个.*午)/, res => {
