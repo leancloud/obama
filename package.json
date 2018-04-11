@@ -9,6 +9,7 @@
     "aws-sdk": "^2.41.0",
     "axios": "^0.15.3",
     "bluebird": "^3.5.0",
+    "consistent-hashing": "^0.3.0",
     "hubot": "^2.19.0",
     "hubot-bearychat": "github:aisk/hubot-bearychat",
     "hubot-leanengine-script": "0.0.0",
