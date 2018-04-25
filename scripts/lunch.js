@@ -20,12 +20,14 @@ const days = ['周一', '周二', '周三', '周四', '周五'];
 
 module.exports = function(hubot) {
   hubot.hear(/吃饭/, res => {
+    res.send('正在通过基于区块链的确定性一致性散列算法摇出符合概率预期的本周公款吃喝名单 ...');
+
     return new AV.Query(LunchCount).find().then( lunchCountObjects => {
       const members = lunchCountObjects.map( lunchCountObject => {
         return lunchCountObject.get('name');
       });
 
-      return getThisWeekRandomSalt().then( salt => {
+      return getBlockchainSalt().then( salt => {
         const hashing = new ConsistentHashing(days);
 
         hashing.crypto = function(str) {
@@ -56,7 +58,7 @@ module.exports = function(hubot) {
   });
 }
 
-function getThisWeekRandomSalt() {
+function getBlockchainSalt() {
   const beginOfWeek = moment().startOf('week');
 
   return axios.get(`https://blockchain.info/blocks/${beginOfWeek.valueOf()}?format=json`).then( ({data: {blocks}}) => {
