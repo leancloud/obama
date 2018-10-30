@@ -73,7 +73,7 @@ module.exports = function(robot) {
     }
   }
 
-  robot.hear('行吗', 行不行的算法);
+  robot.hear(/行吗|吼不吼/, 行不行的算法);
 
   robot.hear('算法', function(res) {
     res.send('行不行的算法是:\n' +

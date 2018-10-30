@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "description": "Doing a little job in LeanCloud",
   "scripts": {
-    "start": "EXPRESS_PORT=${LEANCLOUD_APP_PORT} sh bin/hubot -a bearychat"
+    "start": "EXPRESS_PORT=${LEANCLOUD_APP_PORT} sh bin/hubot --adapter zulip"
   },
   "dependencies": {
     "aws-sdk": "^2.41.0",
@@ -11,9 +11,9 @@
     "bluebird": "^3.5.0",
     "consistent-hashing": "^0.3.0",
     "hubot": "^2.19.0",
-    "hubot-bearychat": "github:aisk/hubot-bearychat",
     "hubot-leanengine-script": "0.0.0",
     "hubot-scripts": "^2.17.2",
+    "hubot-zulip": "^0.1.0",
     "leanengine": "^2.0.3",
     "lodash": "^4.17.4",
     "moment": "^2.18.1",

@@ -11,7 +11,7 @@ const leancloudStatus = require('../lib/leancloud-status');
 module.exports = function(hubot) {
   const helpMessage = `status <new|amend> [color] content\nAvailable colors: ${Object.keys(leancloudStatus.colorMapping).join(', ')}`;
 
-  hubot.hear(/status(.*)/, function(res) {
+  hubot.respond(/status(.*)/, function(res) {
     const result = (res.match[1] || '').trim().match(/(\S*)\s*(.*)/);
 
     if (!result) {

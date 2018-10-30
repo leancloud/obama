@@ -50,9 +50,9 @@ module.exports = function(hubot) {
     res.send(`<https://github.com/leancloud/obama>`);
   });
 
-  hubot.hear(/(代码|code|man)/, res => {
-    res.send(`<https://github.com/leancloud/obama/blob/master/scripts/eat-what.js>`);
-  });
+  // hubot.hear(/(代码|code|man)/, res => {
+  //   res.send(`<https://github.com/leancloud/obama/blob/master/scripts/eat-what.js>`);
+  // });
 
   hubot.hear(/(午|晚)?.*吃(什么|啥)/, res => {
     const tag = res.match[1] ? res.match[1] : '晚';
