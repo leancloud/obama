@@ -13,10 +13,11 @@
     "hubot": "^2.19.0",
     "hubot-leanengine-script": "0.0.0",
     "hubot-scripts": "^2.17.2",
-    "hubot-zulip": "^0.1.0",
+    "hubot-zulip": "leancloud/hubot-zulip",
     "leanengine": "^2.0.3",
     "lodash": "^4.17.4",
     "moment": "^2.18.1",
+    "ms": "^2.1.1",
     "random-weighted-choice": "^0.1.3",
     "seed-random": "^2.2.0"
   },
