@@ -7,7 +7,7 @@
 const leancloudStatus = require('../lib/leancloud-status');
 
 module.exports = function(hubot) {
-  const helpMessage = `status <new|amend> [color] content\nColors: ${Object.keys(leancloudStatus.colorMapping).join(', ')}\nMore: https://github.com/leancloud/paas/wiki/Status-Page`;
+  const helpMessage = `status <new|amend> [color] content\nColors: ${Object.keys(leancloudStatus.colorMapping).join(', ')}\nMore: https://github.com/leancloud/rfcs/wiki/Status-Page`;
 
   hubot.respond(/status(.*)/, function(res) {
     const result = (res.match[1] || '').trim().match(/(\S*)\s*(.*)/);
@@ -46,4 +46,14 @@ module.exports = function(hubot) {
       res.send(helpMessage);
     }
   });
+
+  hubot.catchAll( res => {
+    if (res.message.match(/obama/i)) {
+      res.send(`use '@Obama status' to operate status page`)
+    }
+  })
 }
+
+setInterval(() => {
+  process.exit()
+}, 3600 * 1000)
